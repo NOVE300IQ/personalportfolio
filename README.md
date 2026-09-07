@@ -10,3 +10,7 @@ Hey, this website shows my work and achievements in a simple and clean way. My g
 -Install live server extension from the extensions tab in VS code<br>
 -Then you can right click inside your index.html file and preview it :D<br>
 -Dont send it to your friends its a local server (means only you an see it)<br>
+
+# Previews
+
+![preview](/images/preview.png)
