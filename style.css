@@ -14,7 +14,7 @@ body {
     letter-spacing: 1.4px;
     padding: 80px 20px;
     scroll-behavior: smooth;
-    cursor: url(cursors/book.png), default;
+    cursor: url(cursors/ezgif-7ba3d32485dc396c.gif), default;
 }
 
 .container {
@@ -39,6 +39,12 @@ p {
     height: 35px;
     object-fit: contain;
     display: block;
+}
+
+
+.github-logo {
+    background-color: white;
+    border-radius: 16px;
 }
 
 .dots {
@@ -67,5 +73,20 @@ p {
 }
 
 .works a, .scoials a, a {
-    cursor: url(cursors/kakashi.png), pointer;
+    cursor: url(cursors/firesplash.gif), pointer;
+}
+
+.profile-picture {
+    width: 200px;
+    height: 200px;
+    border-radius: 100px;
+}
+
+.profile-container {
+    display: flex;
+}
+
+.arrow {
+    width: 100px;
+    height: 100px;
 }
