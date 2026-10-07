@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>2D Parkour Runner</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #3a4f62; /* Sky/Background color */
+            font-family: sans-serif;
+        }
+
+        #gameCanvas {
+            border: 5px solid #2c3e50; /* Dark border for the game area */
+            background-color: #89cff1; /* Light sky color */
+            display: block;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: white;
+            text-shadow: 2px 2px #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">Score: 0</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <script>
+        // --- SETUP AND INITIALIZATION ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('scoreBoard');
+
+        // Game constants and settings
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 400;
+        const GROUND_Y = GAME_HEIGHT - 50; // Y coordinate for the ground line
+
+        let score = 0;
+        let gameRunning = true;
+        let animationFrameId = null;
+
+        // --- PLAYER OBJECT ---
+        const player = {
+            x: 50,
+            y: GROUND_Y - 40, // Player height is 40px
+            width: 30,
+            height: 40,
+            velocityY: 0,
+            isJumping: false,
+            gravity: 1.2,
+            jumpStrength: -18,
+        };
+
+        // --- OBSTACLE MANAGEMENT ---
+        let obstacles = [];
+        const OBSTACLE_SPEED = 5;
+        const MIN_GAP_BETWEEN_OBSTACLES = 1500; // Milliseconds to spawn next obstacle
+
+        /**
+         * Object representing an incoming hazard (obstacle).
+         */
+        class Obstacle {
+            constructor(x, width, height) {
+                this.x = x;
+                this.y = GROUND_Y - height;
+                this.width = width;
+                this.height = height;
+                this.passed = false; // Track if player has passed this obstacle
+            }
+
+            draw() {
+                ctx.fillStyle = '#c0392b'; // Red color for danger
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+
+            update() {
+                // Move obstacle left
+                this.x -= OBSTACLE_SPEED;
+            }
+        }
+
+
+        // --- GAME MECHANICS FUNCTIONS ---
+
+        /**
+         * Handles the player jumping physics.
+         */
+        function jump() {
+            if (!player.isJumping) {
+                player.isJumping = true;
+                player.velocityY = player.jumpStrength; // Apply upward force
+            }
+        }
+
+        /**
+         * Updates the player's position based on gravity and velocity.
+         */
+        function updatePlayer() {
+            if (player.isJumping) {
+                // Apply vertical movement: Velocity decreases due to gravity
+                player.velocityY += player.gravity; 
+                player.y += player.velocityY;
+
+                // Check if the player has hit the ground
+                if (player.y + player.height >= GROUND_Y) {
+                    player.y = GROUND_Y - player.height; // Snap to ground level
+                    player.isJumping = false;
+                    player.velocityY = 0;
+                }
+            }
+        }
+
+        /**
+         * Generates a new random obstacle.
+         */
+        function generateObstacle() {
+            // Randomize size (makes it feel more natural)
+            const width = Math.random() * 20 + 30; // Width between 30 and 50
+            const height = Math.random() * (canvas.height / 3 - 50) + 30; // Height between 30 and ~100
+
+            // Start position is off-screen right
+            const startX = GAME_WIDTH; 
+            obstacles.push(new Obstacle(startX, width, height));
+        }
+
+
+        /**
+         * Handles collision detection (AABB check).
+         */
+        function checkCollision() {
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+
+                // Check if the player's box overlaps with the obstacle's box
+                if (player.x < obs.x + obs.width &&
+                    player.x + player.width > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.height > obs.y) {
+                    
+                    // Collision detected! Game over!
+                    gameOver();
+                    return true; 
+                }
+
+                // Scoring logic: If the obstacle passed the player's X position and hasn't been scored yet
+                if (obs.x + obs.width < player.x && !obs.passed) {
+                    score += 10;
+                    obs.passed = true; // Mark it as scored
+                    scoreBoard.textContent = `Score: ${score}`;
+                }
+            }
+            return false;
+        }
+
+
+        /**
+         * Clears off-screen obstacles and updates the list.
+         */
+        function updateObstacles() {
+            // Move all existing obstacles
+            for (let i = 0; i < obstacles.length; i++) {
+                obstacles[i].update();
+            }
+
+            // Filter out obstacles that are completely off-screen left
+            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+        }
+
+
+        /**
+         * Draws the entire game scene.
+         */
+        function draw() {
+            // 1. Clear the canvas for the new frame
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // --- Draw Background Elements (Ground) ---
+            // Ground color and line
+            ctx.fillStyle = '#27ae60'; // Green ground color
+            ctx.fillRect(0, GROUND_Y + 10, GAME_WIDTH, GAME_HEIGHT - (GROUND_Y + 10));
+
+            // 2. Draw Obstacles
+            obstacles.forEach(obs => obs.draw());
+
+            // 3. Draw Player (Using simple colored box for simplicity)
+            ctx.fillStyle = '#e67e22'; // Orange runner color
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+
+        /**
+         * The main game loop function.
+         */
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // 1. Update Physics/Positions
+            updatePlayer();
+            updateObstacles();
+            
+            // 2. Check Game State
+            const collisionDetected = checkCollision();
+
+            // 3. Draw everything
+            draw();
+
+            // Request the next frame (this creates the loop)
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+
+        /**
+         * Controls game termination.
+         */
+        function gameOver() {
+            gameRunning = false;
+            cancelAnimationFrame(animationFrameId);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Dark overlay
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '48px Impact';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+            ctx.font = '30px Impact';
+            ctx.fillText(`Final Score: ${score}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(GAME_WIDTH/2 - 150, GAME_HEIGHT/2 + 60, 300, 5);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Impact';
+            ctx.fillText('Press SPACE or Click to Restart', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40);
+        }
+
+
+        // --- INPUT HANDLING (CONTROLS) ---
+
+        function handleInput() {
+             if (!gameRunning) return; // Do nothing if the game is over
+
+            if (event.code === 'Space' || event.type === 'click') {
+                jump();
+                // Prevent scrolling when pressing space in a browser context
+                event.preventDefault(); 
+            }
+        }
+        document.addEventListener('keydown', handleInput);
+        canvas.addEventListener('mousedown', handleInput);
+
+
+        /**
+         * Initializes or resets the game state.
+         */
+        function initGame() {
+            // Reset variables
+            player.y = GROUND_Y - player.height;
+            player.velocityY = 0;
+            player.isJumping = false;
+            obstacles = [];
+            score = 0;
+            gameRunning = true;
+            scoreBoard.textContent = 'Score: 0';
+
+            // Start the game loop
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); // Stop any existing loop
+            gameLoop();
+        }
+
+
+        // --- GAME FLOW MANAGEMENT ---
+
+        let obstacleInterval = setInterval(() => {
+            if (gameRunning) {
+                generateObstacle();
+            }
+        }, 1500); // Initial spawn rate: every 1.5 seconds
+
+
+        // Start the game immediately when the page loads
+        initGame(); 
+
+    </script>
+</body>
+</html>
